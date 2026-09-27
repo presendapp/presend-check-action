@@ -5,7 +5,7 @@ A GitHub Action that checks your dependencies against [Presend](https://presend.
 - **Suspicious maintainer changes** (npm only) -- a package whose publisher changed after a long period of dormancy, the pattern behind the `event-stream` compromise. It cannot detect a hijacked existing account (`ua-parser-js`) or a malicious release by the original maintainer (`colors.js`).
 - **Known vulnerabilities** (npm and PyPI) -- via [OSV.dev](https://osv.dev).
 
-No signup, no API key, no rate-limit tier walls -- the underlying API is free to call directly too.
+No signup, no API key, no paid tiers (per-minute rate limits apply) -- the underlying API is free to call directly too.
 
 ## Usage
 
