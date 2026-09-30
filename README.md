@@ -60,4 +60,4 @@ A flagged maintainer change is a signal for manual review, not proof of compromi
 
 ## Source
 
-This action wraps the public Presend API. Full API docs, source, and the underlying endpoints: [github.com/presendapp/presend](https://github.com/presendapp/presend)
+This action wraps the public Presend API. Full API docs, source, and the underlying endpoints: [github.com/presendapp/presend-source](https://github.com/presendapp/presend-source)
