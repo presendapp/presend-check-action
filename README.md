@@ -7,6 +7,8 @@ A GitHub Action that checks your dependencies against [Presend](https://presend.
 
 No signup, no API key, no paid tiers (per-minute rate limits apply) -- the underlying API is free to call directly too.
 
+**Teams:** we are testing a paid version (a check on every pull request that changes a dependency, higher limits, false-positive rates measured and published). Nothing is for sale yet: [join the waitlist](https://presend.pages.dev/teams). This action stays free.
+
 ## Usage
 
 ### npm
