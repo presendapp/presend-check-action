@@ -4,8 +4,8 @@ A GitHub Action that checks the dependencies in your `package.json` or `requirem
 
 - **Typosquats** (npm and PyPI): a dependency whose name is one or two edits away from a popular package (`expres` next to `express`). It uses [Presend](https://presend.pages.dev)'s typosquat check, whose false-positive rate on the most-used packages is [measured and published](https://presend.pages.dev/measurements).
 - **Suspicious maintainer changes** (npm only): a new publisher after a long period of dormancy, the pattern behind the `event-stream` compromise. It cannot detect a hijacked existing account (`ua-parser-js`) or a malicious release by the original maintainer (`colors.js`). A flagged change is a signal for review, not proof of compromise: legitimate handoffs happen.
-- **Names that do not exist** (npm only): a dependency name that is not on the npm registry, for instance invented by an AI model, is reported as an issue.
-- **New packages** (npm only): a dependency first published less than 30 days ago is reported as a warning, which does not fail the job. A recent package is often legitimate; it is also where invented and look-alike names get registered. These two npm signals come with the maintainer-change check: removing `maintainer` from `checks` removes them too.
+- **Names that do not exist** (npm and PyPI): a dependency name that is not on the registry, for instance invented by an AI model, is reported as an issue.
+- **New packages** (npm and PyPI): a dependency first published less than 30 days ago (on PyPI, the age of the oldest release still published) is reported as a warning, which does not fail the job. A recent package is often legitimate; it is also where invented and look-alike names get registered. These two signals come with the maintainer-change check: removing `maintainer` from `checks` removes them too.
 - **Known vulnerabilities** (npm and PyPI) of the version you use, straight from [OSV.dev](https://osv.dev).
 
 It is not a malware scanner and does not analyse package code: use it alongside one.
@@ -37,7 +37,7 @@ No signup, no API key, no paid tiers (per-minute rate limits apply). The action 
     manifest-path: 'requirements.txt'   # optional, defaults to requirements.txt
 ```
 
-The maintainer-change check is npm-only and is skipped in `pypi` mode.
+The publisher-change analysis is npm-only: in `pypi` mode the same check reports only names that do not exist and new packages.
 
 Full example workflow:
 

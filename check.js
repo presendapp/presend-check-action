@@ -114,12 +114,15 @@ async function presendBatch(check, endpoint, batchSize, ecosystem, deps, toResul
 
 const checkTyposquats = (ecosystem, deps) => presendBatch('typosquat', 'typosquat-check', TYPOSQUAT_BATCH, ecosystem, deps,
   (x) => ({ suspicious: !!x.suspicious, details: (x.similar_to || []).map((s) => `close to ${s.name} (distance ${s.distance})`) }));
-const checkMaintainers = (ecosystem, deps) => presendBatch('maintainer', 'maintainer-change-check', MAINTAINER_BATCH, ecosystem, deps,
-  (x) => x.found === false
-    // The same batch tells whether the name exists and, from the registry document, how old the package is.
-    ? { check: 'existence', suspicious: true, details: ['does not exist on npm: the name may be invented; check it against the project documentation'] }
-    : { suspicious: !!x.suspicious, details: x.flagged_events,
-        newPackage: x.new_package === true ? { days: x.package_age_days, first: x.first_published } : null });
+// The same batch tells whether the name exists and, from the registry document, how old the package is.
+// PyPI: existence and age only (PyPI does not expose who published each release), reported as the 'existence' check.
+const checkMaintainers = (ecosystem, deps) => presendBatch('maintainer', 'maintainer-change-check', MAINTAINER_BATCH, ecosystem, deps, (x) => {
+  const registry = ecosystem === 'npm' ? 'npm' : 'PyPI';
+  if (x.found === false) return { check: 'existence', suspicious: true, details: [`does not exist on ${registry}: the name may be invented; check it against the project documentation`] };
+  const newPackage = x.new_package === true ? { days: x.package_age_days, first: x.first_published } : null;
+  if (ecosystem !== 'npm') return { check: 'existence', suspicious: false, details: [], newPackage };
+  return { suspicious: !!x.suspicious, details: x.flagged_events, newPackage };
+});
 
 // Known vulnerabilities of the version in the manifest, straight from OSV.dev (no key, batch API).
 async function checkVulnerabilities(ecosystem, deps) {
@@ -146,11 +149,11 @@ async function checkVulnerabilities(ecosystem, deps) {
 
 export async function run(manifestPath = MANIFEST_PATH, ecosystem = ECOSYSTEM) {
   const deps = readDependencies(ecosystem, manifestPath);
-  const skippedMaintainer = REQUESTED_CHECKS.includes('maintainer') && ecosystem !== 'npm';
+  const pypiMaintainer = REQUESTED_CHECKS.includes('maintainer') && ecosystem !== 'npm';
   const results = [];
   if (deps.length > 0) {
     if (REQUESTED_CHECKS.includes('typosquat')) results.push(...await checkTyposquats(ecosystem, deps));
-    if (REQUESTED_CHECKS.includes('maintainer') && ecosystem === 'npm') results.push(...await checkMaintainers(ecosystem, deps));
+    if (REQUESTED_CHECKS.includes('maintainer')) results.push(...await checkMaintainers(ecosystem, deps));
     if (REQUESTED_CHECKS.includes('vulnerability')) results.push(...await checkVulnerabilities(ecosystem, deps));
   }
   const issues = results.filter((r) => r.suspicious);
@@ -160,7 +163,7 @@ export async function run(manifestPath = MANIFEST_PATH, ecosystem = ECOSYSTEM) {
   const done = results.length - errors.length;
 
   console.log(`Presend dependency check (${ecosystem}): ${deps.length} package(s), ${done} of ${results.length} check(s) completed.`);
-  if (skippedMaintainer) console.log('(maintainer-change check skipped: npm only)');
+  if (pypiMaintainer) console.log('(publisher-change analysis is npm only; for PyPI, existence and age are checked)');
   if (errors.length > 0) {
     const reasons = {};
     for (const e of errors) { const k = `${e.check}: ${e.error}`; reasons[k] = (reasons[k] || 0) + 1; }
@@ -177,9 +180,11 @@ export async function run(manifestPath = MANIFEST_PATH, ecosystem = ECOSYSTEM) {
   }
   for (const w of warnings) {
     const when = w.newPackage.days === 0 ? 'less than a day ago' : `${w.newPackage.days} day(s) ago`;
-    console.log(`::warning title=Presend: new package ${w.pkgName}::${w.pkgName} was first published on npm ${when} (${String(w.newPackage.first).slice(0, 10)}). New packages are where invented and look-alike names get registered: check the name against the project's own documentation. This does not fail the job.`);
+    const what = ecosystem === 'npm' ? 'was first published on npm' : 'has its oldest release still on PyPI uploaded';
+    const why = ecosystem === 'npm' ? '' : ' (a new project, or its earlier releases were deleted)';
+    console.log(`::warning title=Presend: new package ${w.pkgName}::${w.pkgName} ${what} ${when} (${String(w.newPackage.first).slice(0, 10)})${why}. New packages are where invented and look-alike names get registered: check the name against the project's own documentation. This does not fail the job.`);
   }
-  if (warnings.length > 0) console.log(`ℹ️  ${warnings.length} new package(s), first published less than 30 days ago: ${warnings.map((w) => w.pkgName).join(', ')} (warning only).`);
+  if (warnings.length > 0) console.log(`ℹ️  ${warnings.length} new package(s), less than 30 days old${ecosystem === 'npm' ? '' : ' (by the oldest release still on PyPI)'}: ${warnings.map((w) => w.pkgName).join(', ')} (warning only).`);
   if (issues.length > 0) {
     // issues already listed above
   } else if (errors.length === 0) {
