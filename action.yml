@@ -1,5 +1,5 @@
 name: 'Presend Dependency Security Check'
-description: 'Flags typosquats, suspicious maintainer changes and known vulnerabilities in npm and PyPI dependencies. Free.'
+description: 'Flags typosquats and known vulnerabilities in npm and PyPI dependencies, and suspicious maintainer changes on npm. Free.'
 author: 'presendapp'
 branding:
   icon: 'shield'
