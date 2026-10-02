@@ -1,5 +1,5 @@
 name: 'Presend Dependency Security Check'
-description: 'Flags suspicious maintainer changes and known vulnerabilities in your npm dependencies. Free, no signup.'
+description: 'Flags typosquats, suspicious maintainer changes and known vulnerabilities in npm and PyPI dependencies. Free.'
 author: 'presendapp'
 branding:
   icon: 'shield'
@@ -15,13 +15,17 @@ inputs:
     required: false
     default: ''
   checks:
-    description: 'Comma-separated checks to run: maintainer,vulnerability. maintainer is npm-only and silently skipped for pypi.'
+    description: 'Comma-separated checks to run: typosquat,maintainer,vulnerability. maintainer is npm-only and skipped for pypi.'
     required: false
-    default: 'maintainer,vulnerability'
+    default: 'typosquat,maintainer,vulnerability'
   fail-on-issue:
     description: 'Whether to fail the workflow if an issue is found'
     required: false
     default: 'true'
+  fail-on-incomplete:
+    description: 'Whether to fail the workflow when some checks could not run (rate limit, network). A warning is shown either way.'
+    required: false
+    default: 'false'
 
 runs:
   using: 'composite'
@@ -33,4 +37,5 @@ runs:
         MANIFEST_PATH: ${{ inputs.manifest-path }}
         CHECKS: ${{ inputs.checks }}
         FAIL_ON_ISSUE: ${{ inputs.fail-on-issue }}
+        FAIL_ON_INCOMPLETE: ${{ inputs.fail-on-incomplete }}
       run: node ${{ github.action_path }}/check.js

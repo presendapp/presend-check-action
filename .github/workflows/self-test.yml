@@ -81,3 +81,24 @@ jobs:
             exit 1
           fi
           echo "✅ Correctly did not flag a safe, current version -- confirms version-aware filtering works, not just presence-of-lodash."
+
+  test-npm-typosquat-detected:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Create package.json with a typosquat
+        run: |
+          echo '{ "name": "test", "dependencies": { "expres": "1.0.0" } }' > /tmp/typo-package.json
+      - name: Run check (should fail)
+        id: check
+        uses: ./
+        with:
+          manifest-path: /tmp/typo-package.json
+          checks: typosquat
+        continue-on-error: true
+      - name: Verify it was flagged
+        run: |
+          if [ "${{ steps.check.outcome }}" != "failure" ]; then
+            echo "Expected the typosquat expres to be flagged"
+            exit 1
+          fi
