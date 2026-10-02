@@ -5,6 +5,9 @@ on:
     branches: [main]
   workflow_dispatch: {}
 
+env:
+  PRESEND_TEST: '1'  # nos appels de test sont exclus de la mesure d'usage de Presend
+
 jobs:
   test-npm-detects-issue:
     runs-on: ubuntu-latest

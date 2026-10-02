@@ -13,6 +13,11 @@
 import { readFileSync, existsSync } from 'fs';
 
 const API_BASE = process.env.PRESEND_API_BASE || 'https://presend.pages.dev/api';
+// Identification des requetes : famille de client reconnaissable dans la mesure d'usage de Presend
+// (premier mot du User-Agent, jamais d'IP). PRESEND_TEST=1, pose seulement par nos propres workflows
+// de test, exclut ces appels de la mesure.
+const HEADERS = { 'User-Agent': 'presend-check-action/1 (+https://github.com/presendapp/presend-check-action)' };
+if (process.env.PRESEND_TEST === '1') HEADERS['X-Presend-Test'] = '1';
 const ECOSYSTEM = (process.env.ECOSYSTEM || 'npm').toLowerCase();
 const MANIFEST_PATH = process.env.MANIFEST_PATH || (ECOSYSTEM === 'pypi' ? 'requirements.txt' : 'package.json');
 const FAIL_ON_ISSUE = (process.env.FAIL_ON_ISSUE || 'true') !== 'false';
@@ -59,7 +64,7 @@ function readDependencies(ecosystem, path) {
 
 async function checkMaintainer(ecosystem, pkgName) {
   const url = `${API_BASE}/maintainer-change-check?ecosystem=${ecosystem}&package=${encodeURIComponent(pkgName)}`;
-  const res = await fetch(url);
+  const res = await fetch(url, { headers: HEADERS });
   if (!res.ok) return { pkgName, check: 'maintainer', error: `HTTP ${res.status}` };
   const data = await res.json();
   return { pkgName, check: 'maintainer', suspicious: !!data.suspicious, details: data.flagged_events };
@@ -68,7 +73,7 @@ async function checkMaintainer(ecosystem, pkgName) {
 async function checkVulnerability(ecosystem, pkgName, version) {
   let url = `${API_BASE}/vulnerability-check?ecosystem=${ecosystem}&package=${encodeURIComponent(pkgName)}`;
   if (version) url += `&version=${encodeURIComponent(version)}`;
-  const res = await fetch(url);
+  const res = await fetch(url, { headers: HEADERS });
   if (!res.ok) return { pkgName, check: 'vulnerability', error: `HTTP ${res.status}` };
   const data = await res.json();
   const count = (data.vulnerabilities || []).length;
