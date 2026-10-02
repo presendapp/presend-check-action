@@ -115,7 +115,11 @@ async function presendBatch(check, endpoint, batchSize, ecosystem, deps, toResul
 const checkTyposquats = (ecosystem, deps) => presendBatch('typosquat', 'typosquat-check', TYPOSQUAT_BATCH, ecosystem, deps,
   (x) => ({ suspicious: !!x.suspicious, details: (x.similar_to || []).map((s) => `close to ${s.name} (distance ${s.distance})`) }));
 const checkMaintainers = (ecosystem, deps) => presendBatch('maintainer', 'maintainer-change-check', MAINTAINER_BATCH, ecosystem, deps,
-  (x) => ({ suspicious: !!x.suspicious, details: x.flagged_events }));
+  (x) => x.found === false
+    // The same batch tells whether the name exists and, from the registry document, how old the package is.
+    ? { check: 'existence', suspicious: true, details: ['does not exist on npm: the name may be invented; check it against the project documentation'] }
+    : { suspicious: !!x.suspicious, details: x.flagged_events,
+        newPackage: x.new_package === true ? { days: x.package_age_days, first: x.first_published } : null });
 
 // Known vulnerabilities of the version in the manifest, straight from OSV.dev (no key, batch API).
 async function checkVulnerabilities(ecosystem, deps) {
@@ -150,6 +154,8 @@ export async function run(manifestPath = MANIFEST_PATH, ecosystem = ECOSYSTEM) {
     if (REQUESTED_CHECKS.includes('vulnerability')) results.push(...await checkVulnerabilities(ecosystem, deps));
   }
   const issues = results.filter((r) => r.suspicious);
+  // New packages are reported as warnings: a recent dependency is often legitimate, so they never fail the job.
+  const warnings = results.filter((r) => r.newPackage);
   const errors = results.filter((r) => r.error);
   const done = results.length - errors.length;
 
@@ -168,12 +174,20 @@ export async function run(manifestPath = MANIFEST_PATH, ecosystem = ECOSYSTEM) {
       const v = issue.version_checked ? ` (version ${issue.version_checked}${issue.version_note ? ', ' + issue.version_note : ''})` : '';
       console.log(`  - ${issue.pkgName} [${issue.check}]${v}: ${JSON.stringify(issue.details)}`);
     }
+  }
+  for (const w of warnings) {
+    const when = w.newPackage.days === 0 ? 'less than a day ago' : `${w.newPackage.days} day(s) ago`;
+    console.log(`::warning title=Presend: new package ${w.pkgName}::${w.pkgName} was first published on npm ${when} (${String(w.newPackage.first).slice(0, 10)}). New packages are where invented and look-alike names get registered: check the name against the project's own documentation. This does not fail the job.`);
+  }
+  if (warnings.length > 0) console.log(`ℹ️  ${warnings.length} new package(s), first published less than 30 days ago: ${warnings.map((w) => w.pkgName).join(', ')} (warning only).`);
+  if (issues.length > 0) {
+    // issues already listed above
   } else if (errors.length === 0) {
     console.log(`✅ No issues found in ${results.length} check(s).`);
   } else {
     console.log(`No issues found in the ${done} completed check(s); ${errors.length} could not run (see above).`);
   }
-  return { deps, results, issues, errors };
+  return { deps, results, issues, errors, warnings };
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
